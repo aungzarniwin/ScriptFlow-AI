@@ -1,0 +1,270 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI MediaStudio MVP - Solo Developer Starter</title>
+    <!-- Tailwind CSS for Styling -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        /* Custom Subtitle Overlay Canvas Styling */
+        #previewCanvas {
+            background-color: #0f172a;
+            border-radius: 0.75rem;
+            box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.3);
+        }
+    </style>
+</head>
+<body class="bg-slate-900 text-slate-100 min-h-screen font-sans antialiased">
+
+    <!-- Top Navigation Header -->
+    <header class="border-b border-slate-800 bg-slate-950/50 backdrop-blur px-6 py-4 flex justify-between items-center">
+        <div class="flex items-center gap-2">
+            <span class="bg-indigo-600 text-xs font-bold px-2 py-1 rounded">MVP v1.0</span>
+            <h1 class="font-bold text-lg tracking-wide text-white">AI ShortStudio PRO</h1>
+        </div>
+        <div class="flex items-center gap-4">
+            <span class="text-xs text-slate-400">Status: <span class="text-emerald-400 font-medium">Ready</span></span>
+            <button class="bg-indigo-600 hover:bg-indigo-500 text-xs px-3 py-2 rounded-lg font-medium transition">Upgrade Pro ($19/mo)</button>
+        </div>
+    </header>
+
+    <!-- Main Workspace Grid (3-Column Solo-Developer Layout) -->
+    <main class="max-w-7xl mx-auto p-6 grid grid-cols-1 lg:grid-cols-12 gap-6">
+
+        <!-- LEFT COLUMN: Input & AI Generation Controls (4 Cols) -->
+        <section class="lg:col-span-4 bg-slate-800/60 p-5 rounded-xl border border-slate-700/60 flex flex-col gap-4">
+            <h2 class="text-md font-semibold text-slate-200 border-b border-slate-700 pb-2">1. Script & Voice Input</h2>
+            
+            <!-- Gemini API Key Input -->
+            <div>
+                <label class="block text-xs font-medium text-slate-400 mb-1">Gemini API Key</label>
+                <input type="password" id="apiKey" placeholder="AIzaSy..." class="w-full bg-slate-900 border border-slate-700 rounded-lg p-2.5 text-xs text-slate-200 focus:outline-none focus:border-indigo-500">
+            </div>
+
+            <!-- Topic / Prompt Input -->
+            <div>
+                <label class="block text-xs font-medium text-slate-400 mb-1">Video Topic / Prompt</label>
+                <textarea id="promptInput" rows="3" placeholder="Write a 15-second viral video script about 3 tips for better sleep..." class="w-full bg-slate-900 border border-slate-700 rounded-lg p-2.5 text-xs text-slate-200 focus:outline-none focus:border-indigo-500 resize-none"></textarea>
+            </div>
+
+            <!-- Action Button -->
+            <button id="generateBtn" onclick="generateScript()" class="w-full bg-indigo-600 hover:bg-indigo-500 text-white font-medium py-2.5 rounded-lg text-xs transition flex justify-center items-center gap-2">
+                <span>✨ Generate Script with AI</span>
+            </button>
+
+            <!-- TTS Voice Selection -->
+            <div class="mt-2 border-t border-slate-700/60 pt-4">
+                <label class="block text-xs font-medium text-slate-400 mb-1">Voice Synthesis Engine</label>
+                <select id="voiceSelect" class="w-full bg-slate-900 border border-slate-700 rounded-lg p-2.5 text-xs text-slate-200 focus:outline-none focus:border-indigo-500">
+                    <option value="">Loading system voices...</option>
+                </select>
+            </div>
+        </section>
+
+        <!-- CENTER COLUMN: Canvas Live Preview (5 Cols) -->
+        <section class="lg:col-span-5 bg-slate-800/60 p-5 rounded-xl border border-slate-700/60 flex flex-col items-center justify-between">
+            <h2 class="text-md font-semibold text-slate-200 border-b border-slate-700 w-full pb-2 mb-4">2. Live Canvas Preview (9:16 Short)</h2>
+            
+            <!-- 9:16 Aspect Ratio Canvas -->
+            <div class="relative w-[270px] h-[480px]">
+                <canvas id="previewCanvas" width="270" height="480" class="w-full h-full border border-slate-700"></canvas>
+            </div>
+
+            <!-- Play / Render Controls -->
+            <div class="w-full mt-4 flex items-center justify-center gap-3">
+                <button onclick="playNarrationAndSubtitle()" class="bg-emerald-600 hover:bg-emerald-500 text-white text-xs px-5 py-2.5 rounded-lg font-medium transition flex items-center gap-1.5">
+                    ▶ Play Preview
+                </button>
+            </div>
+        </section>
+
+        <!-- RIGHT COLUMN: Output & Export Tools (3 Cols) -->
+        <section class="lg:col-span-3 bg-slate-800/60 p-5 rounded-xl border border-slate-700/60 flex flex-col justify-between">
+            <div>
+                <h2 class="text-md font-semibold text-slate-200 border-b border-slate-700 pb-2 mb-4">3. Generated Output</h2>
+                
+                <label class="block text-xs font-medium text-slate-400 mb-1">Script Lines</label>
+                <div id="scriptOutput" class="w-full h-48 bg-slate-900 border border-slate-700 rounded-lg p-3 text-xs text-slate-300 overflow-y-auto space-y-2">
+                    <p class="text-slate-500 italic">Generated lines will appear here...</p>
+                </div>
+            </div>
+
+            <!-- Export Buttons -->
+            <div class="space-y-2 mt-4">
+                <button onclick="downloadSRT()" class="w-full bg-slate-700 hover:bg-slate-600 text-slate-200 text-xs py-2.5 rounded-lg font-medium transition border border-slate-600">
+                    📄 Download .SRT Subtitle File
+                </button>
+            </div>
+        </section>
+
+    </main>
+
+    <!-- JavaScript Logic -->
+    <script>
+        let scriptData = [];
+        const canvas = document.getElementById('previewCanvas');
+        const ctx = canvas.getContext('2d');
+
+        // Initial Canvas Draw State
+        function initCanvas() {
+            ctx.fillStyle = "#0f172a";
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+            
+            ctx.fillStyle = "#94a3b8";
+            ctx.font = "14px sans-serif";
+            ctx.textAlign = "center";
+            ctx.fillText("Ready for Live Subtitles", canvas.width / 2, canvas.height / 2);
+        }
+        initCanvas();
+
+        // Load Browser Speech Voices
+        function loadVoices() {
+            const voiceSelect = document.getElementById('voiceSelect');
+            const voices = window.speechSynthesis.getVoices();
+            voiceSelect.innerHTML = '';
+            voices.forEach((voice, index) => {
+                const option = document.createElement('option');
+                option.value = index;
+                option.textContent = `${voice.name} (${voice.lang})`;
+                if (voice.default) option.selected = true;
+                voiceSelect.appendChild(option);
+            });
+        }
+        window.speechSynthesis.onvoiceschanged = loadVoices;
+        loadVoices();
+
+        // Step 1: Fetch AI Script from Gemini API
+        async function generateScript() {
+            const apiKey = document.getElementById('apiKey').value.trim();
+            const prompt = document.getElementById('promptInput').value.trim();
+            const btn = document.getElementById('generateBtn');
+
+            if (!apiKey || !prompt) {
+                alert("Please enter both API Key and Prompt!");
+                return;
+            }
+
+            btn.disabled = true;
+            btn.innerHTML = "⌛ Generating with Gemini...";
+
+            try {
+                const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        contents: [{
+                            parts: [{
+                                text: `Convert this request into 3 short, punchy sentence-by-sentence lines for a video script. Return ONLY a JSON array of strings without formatting. Prompt: ${prompt}`
+                            }]
+                        }]
+                    })
+                });
+
+                const data = await response.json();
+                const rawText = data.candidates[0].content.parts[0].text;
+                // Clean potential Markdown code block indicators
+                const cleanJson = rawText.replace(/```json|```/g, '').trim();
+                scriptData = JSON.parse(cleanJson);
+
+                // Render Script Output
+                const outputDiv = document.getElementById('scriptOutput');
+                outputDiv.innerHTML = '';
+                scriptData.forEach((line, index) => {
+                    const p = document.createElement('p');
+                    p.className = 'p-2 bg-slate-800 rounded border border-slate-700';
+                    p.innerHTML = `<span class="text-indigo-400 font-bold">Line ${index + 1}:</span> ${line}`;
+                    outputDiv.appendChild(p);
+                });
+
+                alert("Script generated successfully!");
+            } catch (err) {
+                console.error(err);
+                alert("Error generating script. Please check your API Key and network connection.");
+            } finally {
+                btn.disabled = false;
+                btn.innerHTML = "✨ Generate Script with AI";
+            }
+        }
+
+        // Step 2: Render Subtitles & Play Speech Synthesis
+        function playNarrationAndSubtitle() {
+            if (!scriptData || scriptData.length === 0) {
+                alert("Please generate a script first!");
+                return;
+            }
+
+            window.speechSynthesis.cancel(); // Reset audio queue
+            const voiceIndex = document.getElementById('voiceSelect').value;
+            const voices = window.speechSynthesis.getVoices();
+            
+            let currentIndex = 0;
+
+            function speakLine(index) {
+                if (index >= scriptData.length) {
+                    initCanvas();
+                    return;
+                }
+
+                const lineText = scriptData[index];
+
+                // Draw Text on Canvas
+                ctx.fillStyle = "#0f172a";
+                ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+                ctx.fillStyle = "#facc15"; // Subtitle Yellow Highlight
+                ctx.font = "bold 16px sans-serif";
+                ctx.textAlign = "center";
+                
+                // Wrap and render text line
+                ctx.fillText(lineText, canvas.width / 2, canvas.height / 2, canvas.width - 40);
+
+                // Speech Synthesis Setup
+                const utterance = new SpeechSynthesisUtterance(lineText);
+                if (voices[voiceIndex]) utterance.voice = voices[voiceIndex];
+
+                utterance.onend = () => {
+                    currentIndex++;
+                    speakLine(currentIndex);
+                };
+
+                window.speechSynthesis.speak(utterance);
+            }
+
+            speakLine(0);
+        }
+
+        // Step 3: Download Generated .SRT Subtitle File
+        function downloadSRT() {
+            if (!scriptData || scriptData.length === 0) {
+                alert("No script available to export!");
+                return;
+            }
+
+            let srtContent = "";
+            let startTimeSec = 0;
+
+            scriptData.forEach((line, i) => {
+                const duration = Math.max(3, Math.ceil(line.length / 12)); // Rough estimation of line duration
+                const endTimeSec = startTimeSec + duration;
+
+                const formatTime = (s) => new Date(s * 1000).toISOString().substr(11, 12).replace('.', ',');
+
+                srtContent += `${i + 1}\n`;
+                srtContent += `${formatTime(startTimeSec)} --> ${formatTime(endTimeSec)}\n`;
+                srtContent += `${line}\n\n`;
+
+                startTimeSec = endTimeSec;
+            });
+
+            const blob = new Blob([srtContent], { type: 'text/plain' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = 'subtitles.srt';
+            a.click();
+            URL.revokeObjectURL(url);
+        }
+    </script>
+</body>
+</html>
